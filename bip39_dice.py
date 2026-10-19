@@ -109,6 +109,8 @@ def process(dice):
 
 
 def min_dice_remaining(state, total):
+    if state["complete"]:
+        return 0
     missing_words = DICE_WORDS - len(state["indices"])
     pending = total - state["used"]  # dice entered but not yet consumed
     if missing_words > 0:
