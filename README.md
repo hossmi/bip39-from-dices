@@ -207,8 +207,8 @@ The example images use the public test vectors `0x00…00` (*abandon … art*) a
 - **`--split` is a 2-of-2 scheme:**
   - **Losing either sheet makes the seed practically unrecoverable**, because there are about 24!/256 ≈ 2⁷¹ possible orderings to try.
   - The words sheet alone still leaves an attacker with only those ~2⁷¹ candidates. That is hard today, but far below the seed's 256 bits.
-- **For real secret sharing**, prefer standard tools that wallets understand: [SLIP-39](https://github.com/satoshilabs/slips/blob/master/slip-0039.md) (Shamir, e.g. 2-of-3), a **BIP39 passphrase** stored separately, or multisig.
 - **Always check the seed before funding it.** Restore it in your hardware wallet, and confirm that it is accepted and that the addresses match.
+- `english.txt` is intentionally **not** bundled. Download it from the official source and let the script verify its hash.
 
 ## Verifying the script
 
@@ -227,18 +227,3 @@ Each `11111` group maps to index 0 (`abandon`), and `111` gives 3 zero bits. The
 - [english.txt, direct download](https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt)
 - [BIP39 test vectors (Trezor `python-mnemonic`)](https://github.com/trezor/python-mnemonic/blob/master/vectors.json)
 - [SLIP-0039: Shamir's Secret-Sharing for Mnemonic Codes](https://github.com/satoshilabs/slips/blob/master/slip-0039.md)
-
-## Repository layout
-
-```
-.
-├── bip39_dice.py        # the script
-├── README.md
-└── examples/            # SVGs shown above (public test vectors)
-    ├── seed.svg
-    ├── seed-shuffled.svg
-    ├── seed-words.svg
-    └── seed-order.svg
-```
-
-`english.txt` is intentionally **not** bundled. Download it from the official source and let the script verify its hash.
