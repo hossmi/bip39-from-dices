@@ -92,6 +92,7 @@ def text_width(text, size):
 SCRIBBLE_COLORS = ("#e53935", "#2ea44f")   # red, green
 SCRIBBLE_OPACITY = 0.28                     # per bristle; overlaps look darker
 SCRIBBLE_BRISTLES = 3                       # parallel strokes per scribble
+SCRIBBLE_WIDTH = (18, 30)                   # px, overall brush width range
 
 
 def default_scribble_count(width, height):
@@ -144,9 +145,10 @@ def scribble_svg(width, height, count=None, rng=None):
     for k in range(count):
         color = SCRIBBLE_COLORS[(first + k) % len(SCRIBBLE_COLORS)]
         points = _random_walk(width, height, rng)
-        brush = rng.uniform(9, 15)               # overall stroke width
+        brush = rng.uniform(*SCRIBBLE_WIDTH)     # overall stroke width
         for _ in range(SCRIBBLE_BRISTLES):       # a few offset strokes look like a brush
-            dx, dy = rng.uniform(-3, 3), rng.uniform(-3, 3)
+            spread = brush / 4                   # bristle offset grows with the brush
+            dx, dy = rng.uniform(-spread, spread), rng.uniform(-spread, spread)
             jittered = [(x + dx + rng.uniform(-1.5, 1.5), y + dy + rng.uniform(-1.5, 1.5))
                         for x, y in points]
             out.append(f'<path d="{_smooth_path(jittered)}" stroke="{color}" '
