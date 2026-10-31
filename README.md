@@ -132,6 +132,7 @@ python3 bip39_dice.py --svg seed.svg                     # obfuscated strokes, i
 python3 bip39_dice.py --svg seed.svg --shuffle           # random layout + positions
 python3 bip39_dice.py --svg seed.svg --split             # seed-words.svg + seed-order.svg
 python3 bip39_dice.py --svg seed.svg --cols 4 --rows 6   # custom grid
+python3 bip39_dice.py --svg seed.svg --scribble            # random translucent strokes on top
 ```
 
 ## Options
@@ -147,6 +148,7 @@ python3 bip39_dice.py --svg seed.svg --cols 4 --rows 6   # custom grid
 | `--svg-text` | Write the SVG with plain `<text>` elements instead (searchable). |
 | `--shuffle` | SVG only: place the words in random cells, each followed by its real position, e.g. `zoo (17)`. Uses a CSPRNG. |
 | `--split` | SVG only: write `PATH-words.svg` (shuffled words, no positions) and `PATH-order.svg` (positions only, same cells). Both carry the same random pair id. Implies `--shuffle`. |
+| `--scribble [N]` | SVG only: draw N random translucent red/green brush strokes over the grid (N omitted: about 6 for 12 words, 10 for 24). The words stay readable, but the image is harder to read at a glance or with OCR. With `--split`, each sheet gets its own strokes. |
 | `--wordlist PATH` | Path to `english.txt` (default: next to the script). |
 
 The grid is always read **left to right, top to bottom**. If the grid has more cells than words, the extra cells stay empty. A grid with fewer than 24 cells is rejected. The script checks the SVG destination **before** asking for rolls, so you never waste a session of dice throws.
@@ -175,7 +177,7 @@ SVG written to: seed.svg (permissions 0600). Delete it securely once printed.
 - **The words are never printed back.** Error messages only give the position of a wrong word.
 - You can type one word per prompt or several (even the whole phrase) on one line. The **first 4 letters** are enough (`aban` → `abandon`); 3-letter words must be complete.
 - Each word is checked against the wordlist and the whole phrase against the **BIP39 checksum** before anything is written. `--confirm` asks for the phrase twice.
-- `--cols`, `--rows`, `--no-numbers`, `--svg-text`, `--shuffle` and `--split` work as in `bip39_dice.py`.
+- `--cols`, `--rows`, `--no-numbers`, `--svg-text`, `--shuffle`, `--split` and `--scribble` work as in `bip39_dice.py`.
 
 ## Output examples
 
@@ -231,6 +233,7 @@ The example images use the public test vectors `0x00…00` (*abandon … art*) a
 - **What it does not protect against:**
   - OCR, or anyone who looks at the image;
   - a targeted attacker who knows this script, because each letter always produces the same path.
+- **`--scribble`** is light obfuscation: it hampers a quick glance and simple OCR, not a determined reader. The strokes use `stroke-opacity`; browsers, Inkscape and normal printing honour it, but very basic renderers (e.g. ImageMagick's built-in one) may draw them solid. Check the print before deleting the file.
 - **`--shuffle`** only breaks up the phrase as a continuous sequence. The order is printed next to each word.
 - **`--split` is a 2-of-2 scheme:**
   - **Losing either sheet makes the seed practically unrecoverable**, because there are about 24!/256 ≈ 2⁷¹ possible orderings to try.

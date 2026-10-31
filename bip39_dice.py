@@ -29,6 +29,9 @@ Output layout:
                  indexers and malware scanning files for BIP39 phrases; it does
                  NOT defeat OCR or anyone looking at the image).
   --svg-text     write plain <text> elements instead (searchable).
+  --scribble [N] draw N random translucent red/green brush strokes over the
+                 SVG (default: about 6 for 12 words, 10 for 24) to make it a
+                 bit harder to read at a glance or with OCR. Words stay readable.
   --shuffle      place the SVG words in random grid cells, each followed by its
                  real position in parentheses, e.g. "zoo (17)". The terminal
                  grid stays in order. Cannot be combined with --no-numbers.
@@ -245,6 +248,9 @@ def main():
                          "(positions only). Implies --shuffle; requires --svg")
     ap.add_argument("--svg-text", action="store_true",
                     help="write the SVG words as plain <text> instead of strokes")
+    ap.add_argument("--scribble", metavar="N", type=int, nargs="?", const=None, default=0,
+                    help="draw N random translucent brush strokes over the SVG "
+                         "(N omitted: automatic, about 6 for 12 words, 10 for 24)")
     ap.add_argument("--wordlist",
                     default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "english.txt"),
                     help="path to the official BIP39 wordlist (english.txt)")
@@ -265,6 +271,10 @@ def main():
         ap.error("--shuffle/--split only apply to the SVG output; add --svg PATH")
     if args.shuffle and args.no_numbers:
         ap.error("--shuffle/--split need the position numbers; remove --no-numbers")
+    if args.scribble is not None and args.scribble < 0:
+        ap.error("--scribble N must be 0 or more")
+    if args.scribble != 0 and not args.svg:
+        ap.error("--scribble only applies to the SVG output; add --svg PATH")
 
     # Check the SVG destination up front so no dice rolls are wasted.
     svg = None
@@ -273,7 +283,8 @@ def main():
         if error:
             ap.error(error)
         svg = {"path": args.svg, "as_paths": not args.svg_text,
-               "shuffle": args.shuffle, "split": args.split}
+               "shuffle": args.shuffle, "split": args.split,
+               "scribbles": args.scribble}
 
     words = load_wordlist(args.wordlist)
 

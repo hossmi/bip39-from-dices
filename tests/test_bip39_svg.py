@@ -10,6 +10,8 @@ reader function as a parameter, so the tests feed it a list of lines instead.
 """
 
 import io
+import random
+import re
 import sys
 import unittest
 from contextlib import redirect_stdout
@@ -146,6 +148,46 @@ class TestSvgOutput(unittest.TestCase):
         self.assertTrue(svg.startswith("<svg"))
         for w in set(V12_7F):
             self.assertNotIn(w, svg)
+
+
+class TestScribbles(unittest.TestCase):
+    def test_no_scribbles_by_default(self):
+        svg = svg_common.render_svg(V12_ZERO, cols=3, rows=4)
+        self.assertNotIn("stroke-opacity", svg)
+
+    def test_count_and_translucency(self):
+        g = svg_common.scribble_svg(400, 300, count=5, rng=random.Random(1))
+        paths = re.findall(r"<path [^>]*>", g)
+        self.assertEqual(len(paths), 5 * svg_common.SCRIBBLE_BRISTLES)
+        for p in paths:
+            opacity = float(re.search(r'stroke-opacity="([\d.]+)"', p).group(1))
+            self.assertLess(opacity, 1)
+
+    def test_automatic_count(self):
+        g = svg_common.scribble_svg(500, 400, rng=random.Random(2))
+        expected = svg_common.default_scribble_count(500, 400)
+        self.assertEqual(g.count("<path"), expected * svg_common.SCRIBBLE_BRISTLES)
+
+    def test_both_colours_used(self):
+        g = svg_common.scribble_svg(400, 300, count=4, rng=random.Random(3))
+        for color in svg_common.SCRIBBLE_COLORS:
+            self.assertIn(color, g)
+
+    def test_random_each_time(self):
+        a = svg_common.render_svg(V12_ZERO, 3, 4, scribbles=None)
+        b = svg_common.render_svg(V12_ZERO, 3, 4, scribbles=None)
+        self.assertNotEqual(a, b)
+
+    def test_drawn_on_top_and_no_words(self):
+        svg = svg_common.render_svg(V12_7F, 3, 4, scribbles=6)
+        self.assertGreater(svg.index("stroke-opacity"), svg.rindex('stroke="#000000"'))
+        for w in set(V12_7F):
+            self.assertNotIn(w, svg)
+
+    def test_split_sheets_both_scribbled(self):
+        words_svg, order_svg, _ = svg_common.render_svg_split(V24_ZERO, 3, 8, scribbles=3)
+        for svg in (words_svg, order_svg):
+            self.assertEqual(svg.count("stroke-opacity"), 3 * svg_common.SCRIBBLE_BRISTLES)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ built-in font (no searchable text in the file) or as plain <text>, in order,
 shuffled, or split into a words sheet and an order sheet.
 """
 
+import math
 import os
 import secrets
 from xml.sax.saxutils import escape
@@ -84,8 +85,79 @@ def text_width(text, size):
     return len(text) * GLYPH_ADVANCE * size / GLYPH_ASCENT
 
 
+# Scribbles: random translucent brush strokes drawn over the grid (--scribble).
+# They make the printed image harder to read at a glance and harder for OCR,
+# while a person can still read the words through them. Positions, shapes and
+# colours come from the CSPRNG, so every file is different.
+SCRIBBLE_COLORS = ("#e53935", "#2ea44f")   # red, green
+SCRIBBLE_OPACITY = 0.28                     # per bristle; overlaps look darker
+SCRIBBLE_BRISTLES = 3                       # parallel strokes per scribble
+
+
+def default_scribble_count(width, height):
+    """About one scribble per 20 000 px² (6 for 12 words, 10 for 24)."""
+    return max(3, round(width * height / 20000))
+
+
+def _smooth_path(points):
+    """Catmull-Rom spline through `points`, as an SVG path of cubic Béziers."""
+    d = [f"M{points[0][0]:.1f},{points[0][1]:.1f}"]
+    for i in range(len(points) - 1):
+        p0 = points[i - 1] if i > 0 else points[i]
+        p1, p2 = points[i], points[i + 1]
+        p3 = points[i + 2] if i + 2 < len(points) else p2
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
+        d.append(f"C{c1[0]:.1f},{c1[1]:.1f} {c2[0]:.1f},{c2[1]:.1f} "
+                 f"{p2[0]:.1f},{p2[1]:.1f}")
+    return " ".join(d)
+
+
+def _random_walk(width, height, rng):
+    """A wandering, looping line that stays roughly inside the image."""
+    step = min(width, height)
+    x, y = rng.uniform(0, width), rng.uniform(0, height)
+    heading = rng.uniform(0, 2 * math.pi)
+    points = [(x, y)]
+    for _ in range(rng.randint(6, 10)):
+        heading += rng.uniform(-1.4, 1.4)       # sharp turns make loops
+        length = rng.uniform(0.18, 0.4) * step
+        nx, ny = x + length * math.cos(heading), y + length * math.sin(heading)
+        if not -10 <= nx <= width + 10:          # bounce off the edges
+            heading = math.pi - heading
+            nx = x + length * math.cos(heading)
+        if not -10 <= ny <= height + 10:
+            heading = -heading
+            ny = y + length * math.sin(heading)
+        x, y = nx, ny
+        points.append((x, y))
+    return points
+
+
+def scribble_svg(width, height, count=None, rng=None):
+    """Return an SVG <g> with `count` random translucent brush strokes."""
+    rng = rng or secrets.SystemRandom()
+    if count is None:
+        count = default_scribble_count(width, height)
+    first = rng.randrange(len(SCRIBBLE_COLORS))
+    out = ['<g fill="none" stroke-linecap="round" stroke-linejoin="round">']
+    for k in range(count):
+        color = SCRIBBLE_COLORS[(first + k) % len(SCRIBBLE_COLORS)]
+        points = _random_walk(width, height, rng)
+        brush = rng.uniform(9, 15)               # overall stroke width
+        for _ in range(SCRIBBLE_BRISTLES):       # a few offset strokes look like a brush
+            dx, dy = rng.uniform(-3, 3), rng.uniform(-3, 3)
+            jittered = [(x + dx + rng.uniform(-1.5, 1.5), y + dy + rng.uniform(-1.5, 1.5))
+                        for x, y in points]
+            out.append(f'<path d="{_smooth_path(jittered)}" stroke="{color}" '
+                       f'stroke-opacity="{SCRIBBLE_OPACITY}" '
+                       f'stroke-width="{brush * rng.uniform(0.55, 0.9):.1f}"/>')
+    out.append("</g>")
+    return "\n".join(out)
+
+
 def render_svg(mnemonic, cols, rows, numbered=True, as_paths=True, shuffle=False,
-               part="both", order=None, pair_id=None):
+               part="both", order=None, pair_id=None, scribbles=0):
     """Render the words as an SVG grid, read left-to-right, top-to-bottom.
 
     as_paths=True  every character is drawn as vector strokes, so the file
@@ -97,6 +169,8 @@ def render_svg(mnemonic, cols, rows, numbered=True, as_paths=True, shuffle=False
                    "order" -> positions only, in the same cells as "words".
                    For the split parts pass the same `order` and `pair_id` to
                    both calls so the two grids line up cell by cell.
+    scribbles      0 -> none; None -> automatic count; N -> N random translucent
+                   brush strokes drawn over the grid (see scribble_svg).
     """
     n = len(mnemonic)
     num_w = len(str(n))
@@ -164,7 +238,10 @@ def render_svg(mnemonic, cols, rows, numbered=True, as_paths=True, shuffle=False
             if shuffle and not split:
                 out.append(svg_text(tx + word_w + text_width(" ", size), baseline,
                                     f"({j + 1})", size, "#000000", False, as_paths))
-    out += ["</g>", "</svg>", ""]
+    out.append("</g>")
+    if scribbles != 0:
+        out.append(scribble_svg(width, height, scribbles))
+    out += ["</svg>", ""]
     return "\n".join(out)
 
 
@@ -175,12 +252,13 @@ def split_svg_paths(path):
     return f"{root}-words{ext}", f"{root}-order{ext}"
 
 
-def render_svg_split(mnemonic, cols, rows, as_paths=True):
+def render_svg_split(mnemonic, cols, rows, as_paths=True, scribbles=0):
     """Return (words_svg, order_svg): two grids sharing one random layout."""
     order = list(range(len(mnemonic)))
     secrets.SystemRandom().shuffle(order)
     pair_id = secrets.token_hex(2)    # printed on both sheets to pair them
-    common = dict(cols=cols, rows=rows, as_paths=as_paths, order=order, pair_id=pair_id)
+    common = dict(cols=cols, rows=rows, as_paths=as_paths, order=order,
+                  pair_id=pair_id, scribbles=scribbles)   # each sheet gets its own
     return (render_svg(mnemonic, part="words", **common),
             render_svg(mnemonic, part="order", **common),
             pair_id)
@@ -208,11 +286,11 @@ def check_svg_destination(path, split=False):
 
 def write_svg_output(mnemonic, cols, rows, numbered, svg):
     """Write the SVG file(s) described by `svg` and report where they went.
-    svg: dict(path, as_paths, shuffle, split). Raises OSError on failure."""
+    svg: dict(path, as_paths, shuffle, split[, scribbles]). Raises OSError on failure."""
     if svg["split"]:
         words_path, order_path = split_svg_paths(svg["path"])
-        words_svg, order_svg, pair_id = render_svg_split(mnemonic, cols, rows,
-                                                         svg["as_paths"])
+        words_svg, order_svg, pair_id = render_svg_split(
+            mnemonic, cols, rows, svg["as_paths"], svg.get("scribbles", 0))
         write_private_file(words_path, words_svg)
         write_private_file(order_path, order_svg)
         print(f"SVG words written to: {words_path}")
@@ -223,6 +301,7 @@ def write_svg_output(mnemonic, cols, rows, numbered, svg):
     else:
         write_private_file(svg["path"], render_svg(
             mnemonic, cols, rows, numbered,
-            as_paths=svg["as_paths"], shuffle=svg["shuffle"]))
+            as_paths=svg["as_paths"], shuffle=svg["shuffle"],
+            scribbles=svg.get("scribbles", 0)))
         print(f"SVG written to: {svg['path']} (permissions 0600). "
               "Delete it securely once printed.")

@@ -32,6 +32,9 @@ Output options (same meaning as in bip39_dice.py):
   --rows N       grid rows (default: just enough for the words).
   --no-numbers   hide the word numbers.
   --svg-text     write plain <text> elements instead (searchable).
+  --scribble [N] draw N random translucent red/green brush strokes over the
+                 SVG (default: about 6 for 12 words, 10 for 24) to make it a
+                 bit harder to read at a glance or with OCR. Words stay readable.
   --shuffle      random cell order, each word followed by its real position.
   --split        PATH-words.svg + PATH-order.svg sharing one random layout.
                  Implies --shuffle. See the WARNING in bip39_dice.py.
@@ -286,6 +289,9 @@ def main():
                          "random layout. Implies --shuffle")
     ap.add_argument("--svg-text", action="store_true",
                     help="write the words as plain <text> instead of strokes")
+    ap.add_argument("--scribble", metavar="N", type=int, nargs="?", const=None, default=0,
+                    help="draw N random translucent brush strokes over the SVG "
+                         "(N omitted: automatic, about 6 for 12 words, 10 for 24)")
     ap.add_argument("--confirm", action="store_true",
                     help="ask for the phrase twice and require both to match")
     ap.add_argument("--hidden", action="store_true",
@@ -304,6 +310,8 @@ def main():
         args.shuffle = True
     if args.shuffle and args.no_numbers:
         ap.error("--shuffle/--split need the position numbers; remove --no-numbers")
+    if args.scribble is not None and args.scribble < 0:
+        ap.error("--scribble N must be 0 or more")
     if args.cols < 1:
         ap.error("--cols must be at least 1")
 
@@ -318,7 +326,8 @@ def main():
     if error:
         ap.error(error)
     svg = {"path": args.svg, "as_paths": not args.svg_text,
-           "shuffle": args.shuffle, "split": args.split}
+           "shuffle": args.shuffle, "split": args.split,
+           "scribbles": args.scribble}
 
     words = load_wordlist(args.wordlist)
     index = {w: i for i, w in enumerate(words)}
