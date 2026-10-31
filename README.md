@@ -2,7 +2,7 @@
 
 Generate a **24-word BIP39 seed from physical six-sided dice**, using every face of every die and as many dice per throw as you like (e.g. 10 at a time).
 
-A single, dependency-free Python script (standard library only) that turns your rolls into a valid mnemonic with **no modulo bias**, computes the checksum word for you, and prints the result as an ASCII grid or as an SVG ready to print. The SVG can optionally be obfuscated: no searchable text, shuffled layout, or split into two sheets.
+A small, dependency-free Python script (standard library only) that turns your rolls into a valid mnemonic with **no modulo bias**, computes the checksum word for you, and prints the result as an ASCII grid or as an SVG ready to print. The SVG can optionally be obfuscated: no searchable text, shuffled layout, or split into two sheets.
 
 > [!WARNING]
 > **Run this only on an offline (air-gapped) computer**, ideally a live system such as [Tails](https://tails.net/) that keeps nothing on disk.
@@ -19,6 +19,7 @@ A single, dependency-free Python script (standard library only) that turns your 
 - [Getting the BIP39 wordlist](#getting-the-bip39-wordlist)
 - [Usage](#usage)
 - [Options](#options)
+- [SVG from an existing seed (`bip39_svg.py`)](#svg-from-an-existing-seed-bip39_svgpy)
 - [Output examples](#output-examples)
 - [Security notes](#security-notes)
 - [Verifying the script](#verifying-the-script)
@@ -72,10 +73,11 @@ Casino dice (sharp edges, flush-filled pips) are recommended. Drilled pips shift
 
 - Python **3.8+**
 - The official BIP39 English wordlist, saved as `english.txt` next to the script (see below)
+- `svg_common.py` next to the scripts (SVG rendering shared by `bip39_dice.py` and `bip39_svg.py`)
 
 ## Getting the BIP39 wordlist
 
-Download the list **while you are still online** and copy it to the offline machine together with `bip39_dice.py`:
+Download the list **while you are still online** and copy it to the offline machine together with `bip39_dice.py`, `svg_common.py` (shared SVG rendering) and, if you use it, `bip39_svg.py`:
 
 - **Direct download:** [english.txt](https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt)
 - **Source repository:** [bitcoin/bips · bip-0039](https://github.com/bitcoin/bips/tree/master/bip-0039)
@@ -148,6 +150,32 @@ python3 bip39_dice.py --svg seed.svg --cols 4 --rows 6   # custom grid
 | `--wordlist PATH` | Path to `english.txt` (default: next to the script). |
 
 The grid is always read **left to right, top to bottom**. If the grid has more cells than words, the extra cells stay empty. A grid with fewer than 24 cells is rejected. The script checks the SVG destination **before** asking for rolls, so you never waste a session of dice throws.
+
+## SVG from an existing seed (`bip39_svg.py`)
+
+Already have a 12- or 24-word seed? `bip39_svg.py` writes the same SVG layouts from your words instead of from dice. It needs `bip39_dice.py`, `svg_common.py` and `english.txt` next to it.
+
+```bash
+python3 bip39_svg.py --svg seed.svg                       # asks 12 or 24, then the words
+python3 bip39_svg.py --svg seed.svg --words 12 --shuffle
+python3 bip39_svg.py --svg seed.svg --words 24 --split --confirm
+```
+
+```
+Type your 12 words (u = undo last word, q = quit).
+Word  1/12: *******
+Word  2/12: ****
+...
+Checksum OK.
+SVG written to: seed.svg (permissions 0600). Delete it securely once printed.
+```
+
+- **The words are only read interactively from the terminal.** They cannot be given as arguments, from a file or through a pipe, so they never reach the shell history or the process list.
+- **Typing is masked:** one `*` per character, like a password. `--hidden` shows nothing at all (not even the length).
+- **The words are never printed back.** Error messages only give the position of a wrong word.
+- You can type one word per prompt or several (even the whole phrase) on one line. The **first 4 letters** are enough (`aban` → `abandon`); 3-letter words must be complete.
+- Each word is checked against the wordlist and the whole phrase against the **BIP39 checksum** before anything is written. `--confirm` asks for the phrase twice.
+- `--cols`, `--rows`, `--no-numbers`, `--svg-text`, `--shuffle` and `--split` work as in `bip39_dice.py`.
 
 ## Output examples
 
