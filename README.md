@@ -42,8 +42,10 @@ A small, dependency-free Python script (standard library only) that turns your r
   - drawn with vector strokes from a built-in font, so it contains **no searchable text**;
   - optionally **shuffled**, with each word tagged with its real position;
   - optionally **split** into a *words* sheet and an *order* sheet;
+  - optionally **scribbled** with random translucent brush strokes over the words;
   - created with `0600` permissions and never overwritten.
 - **Standard library only.** No `pip install` needed.
+- **Companion script `bip39_svg.py`** prints the same SVGs from an existing 12- or 24-word seed, typed in masked like a password.
 
 ## How it works
 
@@ -161,6 +163,7 @@ Already have a 12- or 24-word seed? `bip39_svg.py` writes the same SVG layouts f
 python3 bip39_svg.py --svg seed.svg                       # asks 12 or 24, then the words
 python3 bip39_svg.py --svg seed.svg --words 12 --shuffle
 python3 bip39_svg.py --svg seed.svg --words 24 --split --confirm
+python3 bip39_svg.py --svg seed.svg --words 12 --scribble
 ```
 
 ```
@@ -224,7 +227,19 @@ The cell in row *r*, column *c* of the words sheet goes with the same cell in th
 |---|---|
 | ![Words sheet](examples/seed-words.svg) | ![Order sheet](examples/seed-order.svg) |
 
-The example images use the public test vectors `0x00…00` (*abandon … art*) and `0x7f…7f` (*legal winner thank year…*).
+### SVG: scribbled (`--svg --scribble`)
+
+Random translucent red and green brush strokes are drawn over the grid. Their shape, thickness and position change with every file. You can still read the words through them, but a quick glance or simple OCR has a harder time. Use `--scribble N` to choose the number of strokes.
+
+12 words, in order (`bip39_svg.py --words 12 --scribble`):
+
+![Scribbled 12-word SVG seed](examples/seed-scribble.svg)
+
+24 words, shuffled (`--shuffle --scribble`):
+
+![Scribbled and shuffled 24-word SVG seed](examples/seed-shuffled-scribble.svg)
+
+The example images use the public test vectors `0x00…00` (*abandon … art* for 24 words, *abandon … about* for 12) and `0x7f…7f` (*legal winner thank year…*).
 
 ## Security notes
 
